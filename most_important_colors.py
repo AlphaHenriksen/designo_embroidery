@@ -14,7 +14,7 @@ import json
 
 # Globals
 NUM_CLUSTERS = 28
-DIR = "embroidery_helper/"
+DIR = "./"
 FILEPATH = DIR + "alpha.jpeg"
 JSONPATH = DIR + "DMC_colors.json"
 IMGSAVEPATH = DIR + f"alpha_{NUM_CLUSTERS}_colors.png"
@@ -109,8 +109,6 @@ with open(JSONPATH, "r") as f:
 dmcs_rgb = np.array(
     [hex2rgb(hex) for hex in dmcs_hex.keys()]
 )  # Convert all of them to rgb values
-# print(dmcs_rgb)
-# print(codes[0])
 
 # Get list of DMC colors equivalent to the cluster colors
 new_cols_rgb = np.zeros_like(codes)
