@@ -10,18 +10,20 @@ import scipy
 import scipy.misc
 import scipy.cluster
 import json
+import os
 
 
 # Globals
-NUM_CLUSTERS = 28
+NUM_CLUSTERS = 25
 DIR = "./"
-FILEPATH = DIR + "alpha.jpeg"
+FILEPATH = DIR + "anderes.jpg"
 JSONPATH = DIR + "DMC_colors.json"
-IMGSAVEPATH = DIR + f"alpha_{NUM_CLUSTERS}_colors.png"
-GRIDSAVEPATH = DIR + f"alpha_{NUM_CLUSTERS}_grid.png"
+pre, _ = os.path.splitext(FILEPATH)
+IMGSAVEPATH = DIR + f"{pre}_{NUM_CLUSTERS}_colors.png"
+GRIDSAVEPATH = DIR + f"{pre}_{NUM_CLUSTERS}_grid.png"
 IMG_SHAPE = (40, 50)
 USE_ASPECT_RATIO = True
-REDUCTION = 16
+REDUCTION = 2
 
 
 def hex2rgb(h):
@@ -114,18 +116,10 @@ dmcs_rgb = np.array(
 new_cols_rgb = np.zeros_like(codes)
 new_cols_hex = []
 for i, code in enumerate(tqdm(codes)):
-    finding_best_col = 1
-
     # TODO: There is a horrible bug somewhere in this code that only happens sometimes. REMOVE IT EVENTUALLY
-    while finding_best_col:
-        try:
-            best_col_rgb = closest_color(
-                code, dmcs_rgb
-            )  # Find the closest color in the DMC dataset
-            finding_best_col = 0
-        except ValueError:
-            continue
-
+    best_col_rgb = closest_color(
+        code, dmcs_rgb
+    )  # Find the closest color in the DMC dataset
     new_cols_rgb[i] = best_col_rgb
     new_cols_hex.append(rgb2hex(*best_col_rgb))
 
@@ -176,25 +170,25 @@ markers = [
     "_",
 ]
 colors = [
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
-    "b",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
     "cornflowerblue",
     "cornflowerblue",
     "cornflowerblue",
@@ -229,7 +223,13 @@ plt.savefig(IMGSAVEPATH)
 plt.show()
 
 # Create plot containing symbols for each distinct type of pixel
-plt.figure(figsize=(10, 10))
+
+fig_size_inch = max(IMG_SHAPE) // 10
+print(f"{fig_size_inch = }")
+
+fig_dpi = 500
+n_markers = max(IMG_SHAPE)
+plt.figure(figsize=(fig_size_inch, fig_size_inch))
 ax = plt.gca()
 x_major_ticks = np.arange(0, IMG_SHAPE[1], 10)
 x_minor_ticks = np.arange(0, IMG_SHAPE[1], 1)
@@ -243,14 +243,63 @@ ax.grid(which="major")
 ax.grid(which="minor", alpha=0.7)
 ax.set_aspect("equal")
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def mscatter(x, y, ax=None, m=None, **kw):
+    import matplotlib.markers as mmarkers
+
+    if not ax:
+        ax = plt.gca()
+    sc = ax.scatter(x, y, **kw)
+    if (m is not None) and (len(m) == len(x)):
+        paths = []
+        for marker in tqdm(m):
+            if isinstance(marker, mmarkers.MarkerStyle):
+                marker_obj = marker
+            else:
+                marker_obj = mmarkers.MarkerStyle(marker)
+            path = marker_obj.get_path().transformed(marker_obj.get_transform())
+            paths.append(path)
+        sc.set_paths(paths)
+    return sc
+
+
 # Insert the correct marker for each color
-for i in tqdm(range(IMG_SHAPE[0] - 1, -1, -1)):
+marker_size = 0.8 * (fig_size_inch * np.sqrt(fig_dpi) / n_markers) ** 2
+print(f"{marker_size = }")
+
+
+ies = []
+js = []
+marker_vals = []
+c_vals = []
+for i in range(IMG_SHAPE[0] - 1, -1, -1):
     for j in range(IMG_SHAPE[1] - 1, -1, -1):
         marker = hex2marker[rgb2hex(*new_im[i, j])]
         color = hex2color[rgb2hex(*new_im[i, j])]
-        plt.scatter(j + 0.5, IMG_SHAPE[0] - i + 0.5, c=color, marker=marker, s=20)
+        marker_vals.append(marker)
+        c_vals.append(color)
+        ies.append(i)
+        js.append(j)
+
+ies = np.array(ies)
+js = np.array(js)
+marker_vals = np.array(marker_vals)
+c_vals = np.array(c_vals)
+scatter = mscatter(
+    js + 0.5,
+    IMG_SHAPE[0] - ies + 0.5,
+    c=c_vals,
+    s=marker_size,
+    m=marker_vals,
+    ax=ax,
+)
+
+# plt.scatter(js + 0.5, IMG_SHAPE[0] - ies + 0.5, c=c_vals, marker=marker_vals, s=10)
 
 ax.set_xlim(0, IMG_SHAPE[1])
 ax.set_ylim(1.0, IMG_SHAPE[0] + 1.0)
-plt.savefig(GRIDSAVEPATH)
+plt.savefig(GRIDSAVEPATH, dpi=fig_dpi)
 plt.show()
