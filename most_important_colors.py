@@ -58,12 +58,18 @@ def closest_color(rgb, colors):
     output:
         rgb_min: The 3-length rgb array with the smallest different to rgb."""
     r, g, b = rgb
-    color_diffs = []
+    col_diffs = []
+    cols = []
     for color in colors:
         cr, cg, cb = color
         color_diff = np.sqrt((r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2)
-        color_diffs.append((color_diff, color))
-    return min(color_diffs)[1]
+        col_diffs.append(color_diff)
+        cols.append(color)
+
+    min_col_idx = np.argmin(col_diffs)
+    min_col = cols[min_col_idx]
+
+    return min_col
 
 
 def mscatter(x, y, ax=None, m=None, **kw):
@@ -136,7 +142,6 @@ dmcs_rgb = np.array(
 new_cols_rgb = np.zeros_like(codes)
 new_cols_hex = []
 for i, code in enumerate(tqdm(codes)):
-    # TODO: There is a horrible bug somewhere in this code that only happens sometimes. REMOVE IT EVENTUALLY
     best_col_rgb = closest_color(
         code, dmcs_rgb
     )  # Find the closest color in the DMC dataset
