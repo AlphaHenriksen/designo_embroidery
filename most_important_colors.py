@@ -12,6 +12,8 @@ import scipy.cluster
 import json
 import os
 import matplotlib.markers as mmarkers
+import matplotlib.colors as mcolors
+import matplotlib.patches as mpatch
 
 
 # Globals
@@ -45,7 +47,7 @@ def rgb2hex(r, g, b):
         rgb: iterable of length 3.
     output:
         h: 7-character long string containing one hashtag and 6 values between 0 and F."""
-    return "#{:02x}{:02x}{:02x}".format(r, g, b)
+    return "#{0:02x}{1:02x}{2:02x}".format(r, g, b)
 
 
 def closest_color(rgb, colors):
@@ -59,17 +61,15 @@ def closest_color(rgb, colors):
         rgb_min: The 3-length rgb array with the smallest different to rgb."""
     r, g, b = rgb
     col_diffs = []
-    cols = []
     for color in colors:
         cr, cg, cb = color
         color_diff = np.sqrt((r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2)
         col_diffs.append(color_diff)
-        cols.append(color)
 
     min_col_idx = np.argmin(col_diffs)
-    min_col = cols[min_col_idx]
+    min_col = colors[min_col_idx]
 
-    return min_col
+    return min_col, min_col_idx
 
 
 def mscatter(x, y, ax=None, m=None, **kw):
@@ -87,6 +87,62 @@ def mscatter(x, y, ax=None, m=None, **kw):
             paths.append(path)
         sc.set_paths(paths)
     return sc
+
+
+def color_comparison(codes_hex, new_cols_hex):
+    fig = plt.figure(figsize=[3, 15])
+    ax = fig.add_axes([0, 0, 1, 1])
+
+    n_groups = 1
+    n_rows = len(new_cols_hex) // n_groups
+
+    print(f"{len(new_cols_hex) = }")
+    sort_idxs = np.array(codes_hex).argsort()
+    sorted_new_cols_hex = np.array(new_cols_hex)[sort_idxs[::-1]]
+    sorted_codes_hex = np.array(codes_hex)[sort_idxs[::-1]]
+
+    for j, (color_name1, color_name2) in enumerate(
+        zip(sorted_new_cols_hex, sorted_codes_hex)
+    ):
+        # Pick text colour based on perceived luminance.
+        rgba = mcolors.to_rgba_array([color_name2, color_name1])
+        luma = 0.299 * rgba[:, 0] + 0.587 * rgba[:, 1] + 0.114 * rgba[:, 2]
+        color_name2_text_color = "k" if luma[0] > 0.5 else "w"
+        color_name1_text_color = "k" if luma[1] > 0.5 else "w"
+
+        col_shift = (j // n_rows) * 2
+        y_pos = j % n_rows
+        text_args = dict(fontsize=10)
+        ax.add_patch(mpatch.Rectangle((0 + col_shift, y_pos), 2, 6, color=color_name2))
+        ax.add_patch(mpatch.Rectangle((1 + col_shift, y_pos), 2, 6, color=color_name1))
+        ax.text(
+            0.5 + col_shift,
+            y_pos + 0.7,
+            color_name2,
+            color=color_name2_text_color,
+            ha="center",
+            **text_args,
+        )
+        ax.text(
+            1.5 + col_shift,
+            y_pos + 0.7,
+            color_name1,
+            color=color_name1_text_color,
+            ha="center",
+            **text_args,
+        )
+
+    for g in range(n_groups):
+        ax.hlines(range(n_rows), 3 * g, 3 * g + 2.8, color="0.7", linewidth=1)
+        ax.text(0.5 + 3 * g, -0.3, "True Color", ha="center")
+        ax.text(1.5 + 3 * g, -0.3, "New Color", ha="center")
+
+    ax.set_xlim(0, 2 * n_groups)
+    ax.set_ylim(n_rows, -1)
+    ax.axis("off")
+    if SAVEIMGS:
+        plt.savefig(GRIDSAVEPATH, dpi=200)
+    plt.show()
 
 
 # Load and size the image
@@ -134,24 +190,32 @@ codes = codes.astype(int)
 with open(JSONPATH, "r") as f:
     dmcs_hex = json.load(f)
 
+
 dmcs_rgb = np.array(
     [hex2rgb(hex) for hex in dmcs_hex.keys()]
 )  # Convert all of them to rgb values
 
+
 # Get list of DMC colors equivalent to the cluster colors
+
 new_cols_rgb = np.zeros_like(codes)
 new_cols_hex = []
 for i, code in enumerate(tqdm(codes)):
-    best_col_rgb = closest_color(
+    best_col_rgb, best_col_idx = closest_color(
         code, dmcs_rgb
     )  # Find the closest color in the DMC dataset
-    new_cols_rgb[i] = best_col_rgb
-    new_cols_hex.append(rgb2hex(*best_col_rgb))
+    best_col_hex = rgb2hex(*best_col_rgb)
 
-# print(new_cols_rgb)
-print(new_cols_hex)
+    dmcs_rgb = np.delete(dmcs_rgb, (best_col_idx), axis=0)
+    dmcs_hex.pop(best_col_hex.upper())
+
+    new_cols_rgb[i] = best_col_rgb
+    new_cols_hex.append(best_col_hex.upper())
+
 codes_hex = [rgb2hex(*cod) for cod in codes]
-print(codes_hex)
+color_comparison(
+    codes_hex, new_cols_hex
+)  # Make a plot comparing the chosen colors to the real ones
 
 # Create DMC image
 markers = [
@@ -234,7 +298,7 @@ colors = [
     "cornflowerblue",
     "cornflowerblue",
 ]
-print(len(colors))
+
 assert len(new_cols_hex) < len(markers) and len(new_cols_hex) < len(
     colors
 ), f"You have chosen too many colors. {NUM_CLUSTERS} should be below {min(len(markers), len(colors))}."
