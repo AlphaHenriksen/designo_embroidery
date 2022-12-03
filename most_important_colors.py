@@ -15,6 +15,10 @@ import matplotlib.markers as mmarkers
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatch
 
+# TODO: make the code work with pngs
+# TODO: find the closest color using a differnet method (maybe hsv)
+# TODO: make the color comparison plot scale to the number of colors chosen
+# TODO: Make a plot showing which symbol corrosponds to which color
 
 # Globals
 NUM_CLUSTERS = 32
