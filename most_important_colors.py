@@ -14,6 +14,9 @@ import os
 import matplotlib.markers as mmarkers
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatch
+from skimage.color import rgb2hsv, hsv2rgb
+
+# https://stackoverflow.com/questions/9018016/how-to-compare-two-colors-for-similarity-difference
 
 # TODO: make the code work with pngs
 # TODO: find the closest color using a differnet method (maybe hsv)
@@ -27,7 +30,7 @@ FILEPATH = DIR + "anders_crop.jpg"
 JSONPATH = DIR + "DMC_colors.json"
 pre, _ = os.path.splitext(FILEPATH)
 SAVEIMGS = False
-PLOTIMGS = False
+PLOTIMGS = True
 IMGSAVEPATH = DIR + f"{pre}_{NUM_CLUSTERS}_colors.png"
 GRIDSAVEPATH = DIR + f"{pre}_{NUM_CLUSTERS}_grid.png"
 IMG_SHAPE = (40, 50)
@@ -198,20 +201,25 @@ with open(JSONPATH, "r") as f:
 dmcs_rgb = np.array(
     [hex2rgb(hex) for hex in dmcs_hex.keys()]
 )  # Convert all of them to rgb values
+dmcs_hsv = rgb2hsv(dmcs_rgb / 256)
+codes_hsv = rgb2hsv(codes / 256)
 
 
 # Get list of DMC colors equivalent to the cluster colors
 
 new_cols_rgb = np.zeros_like(codes)
 new_cols_hex = []
-for i, code in enumerate(tqdm(codes)):
-    best_col_rgb, best_col_idx = closest_color(
-        code, dmcs_rgb
+for i, code in enumerate(tqdm(codes_hsv)):
+    best_col_lab, best_col_idx = closest_color(
+        code, dmcs_hsv
     )  # Find the closest color in the DMC dataset
+    best_col_rgb = 256 * hsv2rgb(best_col_lab)
+    best_col_rgb = best_col_rgb.astype(int)
     best_col_hex = rgb2hex(*best_col_rgb)
-
-    dmcs_rgb = np.delete(dmcs_rgb, (best_col_idx), axis=0)
-    dmcs_hex.pop(best_col_hex.upper())
+    print(f"{best_col_hex = }")
+    # dmcs_rgb = np.delete(dmcs_rgb, (best_col_idx), axis=0)
+    # dmcs_hsv = np.delete(dmcs_hsv, (best_col_idx), axis=0)
+    # dmcs_hex.pop(best_col_hex.upper())
 
     new_cols_rgb[i] = best_col_rgb
     new_cols_hex.append(best_col_hex.upper())
