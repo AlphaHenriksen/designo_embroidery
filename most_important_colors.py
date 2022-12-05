@@ -14,20 +14,23 @@ import os
 import matplotlib.markers as mmarkers
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatch
-from skimage.color import rgb2hsv, hsv2rgb
+from skimage.color import rgb2lab, lab2rgb
 
 # https://stackoverflow.com/questions/9018016/how-to-compare-two-colors-for-similarity-difference
 
 # TODO: make the code work with pngs
+# TODO: Write somewhere which thread numbers are needed for the project
+# TODO: Write how many stiches are necessary
+# TODO: Calculate how much thread is needed of each type
 # TODO: find the closest color using a differnet method (maybe hsv)
 # TODO: make the color comparison plot scale to the number of colors chosen
 # TODO: Make a plot showing which symbol corrosponds to which color
 
 # Globals
-NUM_CLUSTERS = 32
+NUM_CLUSTERS = 25
 DIR = "./"
 FILEPATH = DIR + "anders_crop.jpg"
-JSONPATH = DIR + "DMC_colors.json"
+JSONPATH = DIR + "DMC_colors_new.json"
 pre, _ = os.path.splitext(FILEPATH)
 SAVEIMGS = False
 PLOTIMGS = True
@@ -35,7 +38,7 @@ IMGSAVEPATH = DIR + f"{pre}_{NUM_CLUSTERS}_colors.png"
 GRIDSAVEPATH = DIR + f"{pre}_{NUM_CLUSTERS}_grid.png"
 IMG_SHAPE = (40, 50)
 USE_ASPECT_RATIO = True
-REDUCTION = 2
+REDUCTION = 4
 
 
 def hex2rgb(h):
@@ -188,6 +191,7 @@ c = ar.copy()
 for i, code in enumerate(codes):
     c[scipy.r_[np.where(vecs == i)], :] = code
 codes = codes.astype(int)
+im_cluster = c.reshape(*IMG_SHAPE).astype(np.uint8)
 # plt.imshow(c.reshape(*IMG_SHAPE).astype(np.uint8))
 # plt.show()
 # imageio.imwrite("embroidery_helper/clusters.png", c.reshape(*IMG_SHAPE).astype(np.uint8))
@@ -201,8 +205,10 @@ with open(JSONPATH, "r") as f:
 dmcs_rgb = np.array(
     [hex2rgb(hex) for hex in dmcs_hex.keys()]
 )  # Convert all of them to rgb values
-dmcs_hsv = rgb2hsv(dmcs_rgb / 256)
-codes_hsv = rgb2hsv(codes / 256)
+dmcs_hsv = dmcs_rgb
+codes_hsv = codes
+dmcs_hsv = rgb2lab(dmcs_rgb / 256)
+codes_hsv = rgb2lab(codes / 256)
 
 
 # Get list of DMC colors equivalent to the cluster colors
@@ -213,7 +219,7 @@ for i, code in enumerate(tqdm(codes_hsv)):
     best_col_lab, best_col_idx = closest_color(
         code, dmcs_hsv
     )  # Find the closest color in the DMC dataset
-    best_col_rgb = 256 * hsv2rgb(best_col_lab)
+    best_col_rgb = 256 * lab2rgb(best_col_lab)
     best_col_rgb = best_col_rgb.astype(int)
     best_col_hex = rgb2hex(*best_col_rgb)
     print(f"{best_col_hex = }")
@@ -317,6 +323,8 @@ assert len(new_cols_hex) < len(markers) and len(new_cols_hex) < len(
 
 hex2marker = {hex: marker for hex, marker in zip(new_cols_hex, markers)}
 hex2color = {hex: color for hex, color in zip(new_cols_hex, colors)}
+
+c = ar.copy()
 for i, code in enumerate(codes):
     c[scipy.r_[np.where(vecs == i)], :] = new_cols_rgb[i]
 
@@ -324,8 +332,10 @@ new_im = c.reshape(*IMG_SHAPE).astype(np.uint8)
 
 # Show the image after DMC colors have been inserted
 if PLOTIMGS:
-    fig, ax = plt.subplots()
-    plt.imshow(new_im)
+    _, (ax1, ax2, ax3) = plt.subplots(1, 3)
+    ax1.imshow(im)
+    ax2.imshow(im_cluster)
+    ax3.imshow(new_im)
     if SAVEIMGS:
         plt.savefig(IMGSAVEPATH)
     plt.show()
