@@ -27,18 +27,20 @@ from skimage.color import rgb2lab, lab2rgb
 # TODO: Make a plot showing which symbol corrosponds to which color
 
 # Globals
-NUM_CLUSTERS = 25
+NUM_CLUSTERS = 30
 DIR = "./"
 FILEPATH = DIR + "anders_crop.jpg"
-JSONPATH = DIR + "DMC_colors_new.json"
+JSONPATH = DIR + "DMC_colors.json"
 pre, _ = os.path.splitext(FILEPATH)
-SAVEIMGS = False
+SAVEIMGS = True
 PLOTIMGS = True
 IMGSAVEPATH = DIR + f"{pre}_{NUM_CLUSTERS}_colors.png"
 GRIDSAVEPATH = DIR + f"{pre}_{NUM_CLUSTERS}_grid.png"
+IMAGECOMPARISONPATH = DIR + f"{pre}_{NUM_CLUSTERS}_imagecompare.png"
+COLORCOMPARISONPATH = DIR + f"{pre}_{NUM_CLUSTERS}_colorcompare.png"
 IMG_SHAPE = (40, 50)
 USE_ASPECT_RATIO = True
-REDUCTION = 4
+REDUCTION = 2
 
 
 def hex2rgb(h):
@@ -57,7 +59,7 @@ def rgb2hex(r, g, b):
         rgb: iterable of length 3.
     output:
         h: 7-character long string containing one hashtag and 6 values between 0 and F."""
-    return "#{0:02x}{1:02x}{2:02x}".format(r, g, b)
+    return "#{0:02x}{1:02x}{2:02x}".format(r, g, b).upper()
 
 
 def closest_color(rgb, colors):
@@ -151,7 +153,7 @@ def color_comparison(codes_hex, new_cols_hex):
     ax.set_ylim(n_rows, -1)
     ax.axis("off")
     if SAVEIMGS:
-        plt.savefig(GRIDSAVEPATH, dpi=200)
+        plt.savefig(COLORCOMPARISONPATH, dpi=200)
     plt.show()
 
 
@@ -192,10 +194,6 @@ for i, code in enumerate(codes):
     c[scipy.r_[np.where(vecs == i)], :] = code
 codes = codes.astype(int)
 im_cluster = c.reshape(*IMG_SHAPE).astype(np.uint8)
-# plt.imshow(c.reshape(*IMG_SHAPE).astype(np.uint8))
-# plt.show()
-# imageio.imwrite("embroidery_helper/clusters.png", c.reshape(*IMG_SHAPE).astype(np.uint8))
-
 
 # Load the file full of DMC colors
 with open(JSONPATH, "r") as f:
@@ -225,10 +223,10 @@ for i, code in enumerate(tqdm(codes_hsv)):
     print(f"{best_col_hex = }")
     # dmcs_rgb = np.delete(dmcs_rgb, (best_col_idx), axis=0)
     # dmcs_hsv = np.delete(dmcs_hsv, (best_col_idx), axis=0)
-    # dmcs_hex.pop(best_col_hex.upper())
+    # dmcs_hex.pop(best_col_hex)
 
     new_cols_rgb[i] = best_col_rgb
-    new_cols_hex.append(best_col_hex.upper())
+    new_cols_hex.append(best_col_hex)
 
 codes_hex = [rgb2hex(*cod) for cod in codes]
 color_comparison(
@@ -337,7 +335,7 @@ if PLOTIMGS:
     ax2.imshow(im_cluster)
     ax3.imshow(new_im)
     if SAVEIMGS:
-        plt.savefig(IMGSAVEPATH)
+        plt.savefig(IMAGECOMPARISONPATH)
     plt.show()
 
 # Create plot containing symbols for each distinct type of pixel
