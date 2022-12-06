@@ -14,17 +14,18 @@ import os
 import matplotlib.markers as mmarkers
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatch
+import sys
 from skimage.color import rgb2lab, lab2rgb
 
 # https://stackoverflow.com/questions/9018016/how-to-compare-two-colors-for-similarity-difference
 
+# TODO: DMCS_RGB HAS DUPLICATE VALUES, HOW IS THAT POSSIBLE???????????
 # TODO: make the code work with pngs
 # TODO: Write somewhere which thread numbers are needed for the project
 # TODO: Write how many stiches are necessary
 # TODO: Calculate how much thread is needed of each type
-# TODO: find the closest color using a differnet method (maybe hsv)
-# TODO: make the color comparison plot scale to the number of colors chosen
-# TODO: Make a plot showing which symbol corrosponds to which color
+# TODO: find the closest color using a different method (maybe hsv)
+# TODO: make the color comparison plot and color-to-symbol plot scale to the number of colors chosen
 
 # Globals
 NUM_CLUSTERS = 30
@@ -157,6 +158,74 @@ def color_comparison(codes_hex, new_cols_hex):
     plt.show()
 
 
+def color_marker_relationship(color_marker_dict):
+    fig = plt.figure(figsize=[3, 15])
+    ax = fig.add_axes([0, 0, 1, 1])
+
+    colors, attrs = list(color_marker_dict.keys()), list(color_marker_dict.values())
+    markers = []
+    markercolors = []
+    names = []
+    for attr in attrs:
+        markers.append(attr[0])
+        markercolors.append(attr[1])
+        names.append(attr[2])
+
+    n_groups = 1
+    n_rows = len(colors) // n_groups
+
+    sort_idxs = np.array(colors).argsort()
+    sorted_markers = np.array(markers)[sort_idxs[::-1]]
+    sorted_colors = np.array(colors)[sort_idxs[::-1]]
+    sorted_markercolors = np.array(markercolors)[sort_idxs[::-1]]
+    sorted_names = np.array(names)[sort_idxs[::-1]]
+    print(f"{sorted_markers = }")
+    print(f"{sorted_markercolors = }")
+
+    for j, (color, marker, markercolor, name) in enumerate(
+        zip(sorted_colors, sorted_markers, sorted_markercolors, sorted_names)
+    ):
+        # Pick text colour based on perceived luminance.
+        rgba = mcolors.to_rgba_array([color])
+        luma = 0.299 * rgba[0, 0] + 0.587 * rgba[0, 1] + 0.114 * rgba[0, 2]
+        text_color = "k" if luma > 0.5 else "w"
+
+        col_shift = (j // n_rows) * 2
+        y_pos = j % n_rows
+        text_args = dict(fontsize=10)
+        ax.add_patch(mpatch.Rectangle((0 + col_shift, y_pos), 2, 6, color=color))
+        ax.add_patch(mpatch.Rectangle((1 + col_shift, y_pos), 2, 6, color="#ffffff"))
+        ax.text(
+            0.5 + col_shift,
+            y_pos + 0.7,
+            name,
+            color=text_color,
+            ha="center",
+            **text_args,
+        )
+        ax.scatter(1.5 + col_shift, y_pos + 0.5, marker=marker, c=markercolor, s=300)
+        # ax.text(
+        #     1.5 + col_shift,
+        #     y_pos + 0.7,
+        #     color,
+        #     color=text_color,
+        #     ha="center",
+        #     **text_args,
+        # )
+
+    for g in range(n_groups):
+        ax.hlines(range(n_rows), 3 * g, 3 * g + 2.8, color="0.7", linewidth=1)
+        ax.text(0.5 + 3 * g, -0.3, "Color", ha="center")
+        ax.text(1.5 + 3 * g, -0.3, "Symbol", ha="center")
+
+    ax.set_xlim(0, 2 * n_groups)
+    ax.set_ylim(n_rows, -1)
+    ax.axis("off")
+    # if SAVEIMGS:
+    plt.savefig(COLORCOMPARISONPATH, dpi=200)
+    plt.show()
+
+
 # Load and size the image
 print("Loading image...")
 im = Image.open(FILEPATH)
@@ -203,16 +272,22 @@ with open(JSONPATH, "r") as f:
 dmcs_rgb = np.array(
     [hex2rgb(hex) for hex in dmcs_hex.keys()]
 )  # Convert all of them to rgb values
+
+# np.set_printoptions(threshold=sys.maxsize)
+# dmcs_rgb.sort(axis=0)
+# print(f"{dmcs_rgb = }")
+
+dmcs_names = np.array([name for name in dmcs_hex.values()])
 dmcs_hsv = dmcs_rgb
 codes_hsv = codes
 dmcs_hsv = rgb2lab(dmcs_rgb / 256)
 codes_hsv = rgb2lab(codes / 256)
 
-
 # Get list of DMC colors equivalent to the cluster colors
 
 new_cols_rgb = np.zeros_like(codes)
 new_cols_hex = []
+new_cols_names = []
 for i, code in enumerate(tqdm(codes_hsv)):
     best_col_lab, best_col_idx = closest_color(
         code, dmcs_hsv
@@ -220,22 +295,27 @@ for i, code in enumerate(tqdm(codes_hsv)):
     best_col_rgb = 256 * lab2rgb(best_col_lab)
     best_col_rgb = best_col_rgb.astype(int)
     best_col_hex = rgb2hex(*best_col_rgb)
-    print(f"{best_col_hex = }")
     # dmcs_rgb = np.delete(dmcs_rgb, (best_col_idx), axis=0)
     # dmcs_hsv = np.delete(dmcs_hsv, (best_col_idx), axis=0)
+    # print(f"{best_col_hex = }")
     # dmcs_hex.pop(best_col_hex)
 
+    col_name = dmcs_names[best_col_idx]  # Find the dmc name of the color for plotting
     new_cols_rgb[i] = best_col_rgb
     new_cols_hex.append(best_col_hex)
+    new_cols_names.append(col_name)
+
 
 codes_hex = [rgb2hex(*cod) for cod in codes]
-color_comparison(
-    codes_hex, new_cols_hex
-)  # Make a plot comparing the chosen colors to the real ones
+
+if PLOTIMGS:
+    color_comparison(
+        codes_hex, new_cols_hex
+    )  # Make a plot comparing the chosen colors to the real ones
 
 # Create DMC image
 markers = [
-    ",",
+    ".",
     "o",
     "v",
     "^",
@@ -254,7 +334,7 @@ markers = [
     "D",
     "d",
     "_",
-    ",",
+    ".",
     "o",
     "v",
     "^",
@@ -319,7 +399,12 @@ assert len(new_cols_hex) < len(markers) and len(new_cols_hex) < len(
     colors
 ), f"You have chosen too many colors. {NUM_CLUSTERS} should be below {min(len(markers), len(colors))}."
 
-hex2marker = {hex: marker for hex, marker in zip(new_cols_hex, markers)}
+hex2marker = {
+    hex: (marker, color, name)
+    for hex, (marker, color, name) in zip(
+        new_cols_hex, zip(markers, colors, new_cols_names)
+    )
+}
 hex2color = {hex: color for hex, color in zip(new_cols_hex, colors)}
 
 c = ar.copy()
@@ -370,7 +455,7 @@ if PLOTIMGS:
     c_vals = []
     for i in range(IMG_SHAPE[0] - 1, -1, -1):
         for j in range(IMG_SHAPE[1] - 1, -1, -1):
-            marker = hex2marker[rgb2hex(*new_im[i, j])]
+            marker = hex2marker[rgb2hex(*new_im[i, j])][0]
             color = hex2color[rgb2hex(*new_im[i, j])]
             marker_vals.append(marker)
             c_vals.append(color)
@@ -397,3 +482,5 @@ if PLOTIMGS:
     if SAVEIMGS:
         plt.savefig(GRIDSAVEPATH, dpi=fig_dpi)
     plt.show()
+
+color_marker_relationship(hex2marker)  # Show which markers corrospond to which colors
