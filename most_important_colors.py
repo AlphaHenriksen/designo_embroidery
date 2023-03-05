@@ -30,7 +30,7 @@ from skimage.color import rgb2lab, lab2rgb
 # Globals
 NUM_CLUSTERS = 30
 DIR = "./"
-FILEPATH = DIR + "anders_crop.jpg"
+FILEPATH = DIR + "im_igen.jpg"
 JSONPATH = DIR + "DMC_colors.json"
 pre, _ = os.path.splitext(FILEPATH)
 SAVEIMGS = True
@@ -41,7 +41,7 @@ IMAGECOMPARISONPATH = DIR + f"{pre}_{NUM_CLUSTERS}_imagecompare.png"
 COLORCOMPARISONPATH = DIR + f"{pre}_{NUM_CLUSTERS}_colorcompare.png"
 IMG_SHAPE = (40, 50)
 USE_ASPECT_RATIO = True
-REDUCTION = 2
+REDUCTION = 1
 
 
 def hex2rgb(h):
